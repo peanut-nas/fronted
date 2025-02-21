@@ -27,7 +27,7 @@ export default function LoginForm() {
     setIsExiting(false);
 
     try {
-      const response = await fetch(`/api/userLogin?name=${encodeURIComponent(username)}&psw=${encodeURIComponent(password)}`);
+      const response = await fetch(`/api/login?name=${encodeURIComponent(username)}&psw=${encodeURIComponent(password)}`);
       const data = await response.json();
 
       if (!response.ok || data.code !== 200) {
