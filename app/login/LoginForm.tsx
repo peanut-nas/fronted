@@ -47,12 +47,14 @@ export default function LoginForm() {
     <div className="relative w-full max-w-md">
       {/* Toast with fixed positioning */}
       {error && (
-        <div className={`fixed left-[50%] right-[50%] mx-auto z-50 ${
-          isExiting ? 'animate-slide-up top-2' : 'animate-slide-down top-6'
+        <div className={`fixed top-6 left-1/2 z-50 ${
+          isExiting ? 'animate-slide-up' : 'animate-slide-down'
         }`}>
-          <div className="absolute left-[50%] -translate-x-[50%] bg-[#ff444429] backdrop-blur-sm px-6 py-3 rounded-xl flex items-center space-x-3 border border-red-100 shadow-lg min-w-[380px]">
-            <div className="text-red-500">❌</div>
-            <span className="text-sm text-red-600 font-medium">{error}</span>
+          <div className="bg-[#ff444429] backdrop-blur-sm px-6 py-3 rounded-xl border border-red-100 shadow-lg min-w-[380px]">
+            <div className="flex items-center">
+              <div className="text-red-500 absolute left-6">❌</div>
+              <span className="text-sm text-red-600 font-medium w-full text-center">{error}</span>
+            </div>
           </div>
         </div>
       )}
