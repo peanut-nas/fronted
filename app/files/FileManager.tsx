@@ -1,5 +1,6 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import mime from 'mime-types';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -11,9 +12,16 @@ import { Input } from "@/components/ui/input";
 type FileItem = {
   id: string;
   name: string;
-  type: 'file' | 'folder';
+  type: 'file' | 'directory';
   size: string;
   modified: string;
+};
+
+const formatSize = (size: number) => {
+  if (size >= 1e9) return `${(size / 1e9).toFixed(1)} GB`;
+  if (size >= 1e6) return `${(size / 1e6).toFixed(1)} MB`;
+  if (size >= 1e3) return `${(size / 1e3).toFixed(1)} KB`;
+  return `${size} B`;
 };
 
 const FolderIcon = () => (
@@ -43,12 +51,31 @@ const menuItemClass = `
 `;
 
 export default function FileManager() {
-  const [files, setFiles] = useState<FileItem[]>([
-    { id: '1', name: '文档', type: 'folder', size: '-', modified: '2024-03-15' },
-    { id: '2', name: '图片.jpg', type: 'file', size: '2.4 MB', modified: '2024-03-14' },
-  ]);
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [contextMenuTarget, setContextMenuTarget] = useState<{ type: 'file' | 'space', id?: string }>({ type: 'space' });
+  const [path, setPath] = useState<string>('');
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch(`/api/files/${path}`);
+        const data = await response.json();
+        const formattedData = data.map((file: any) => ({
+          id: file.name,
+          name: file.name,
+          type: file.type,
+          size: file.size !== undefined ? formatSize(file.size) : '-',
+          modified: file.last_modified,
+        }));
+        setFiles(formattedData);
+      } catch (error) {
+        console.error('Error fetching files:', error);
+      }
+    };
+
+    fetchFiles();
+  }, [path]);
 
   const handleRename = () => {
     if (contextMenuTarget.type === 'file') {
@@ -80,22 +107,27 @@ export default function FileManager() {
     setRenamingId(null);
   };
 
+  const handleFolderClick = (folderName: string) => {
+    setPath(prevPath => prevPath ? `${prevPath}/${folderName}` : folderName);
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div className="relative min-h-[400px] rounded-lg border border-gray-200 p-4">
-          <div className="grid grid-cols-12 gap-4 text-sm text-gray-500 font-medium border-b pb-2 mb-2">
+          <div className="grid grid-cols-9 gap-4 text-sm text-gray-500 font-medium border-b pb-2 mb-2">
             <div className="col-span-6">名称</div>
-            <div className="col-span-2">类型</div>
-            <div className="col-span-2">大小</div>
-            <div className="col-span-2">修改日期</div>
+            <div className="col-span-1">类型</div>
+            <div className="col-span-1">大小</div>
+            <div className="col-span-1">修改日期</div>
           </div>
 
           {files.map(file => (
             <div 
               key={file.id}
-              className="grid grid-cols-12 gap-4 items-center p-2 hover:bg-gray-50 rounded"
+              className="grid grid-cols-9 gap-4 items-center p-2 hover:bg-gray-50 rounded"
               onContextMenuCapture={() => setContextMenuTarget({ type: 'file', id: file.id })}
+              onClick={() => file.type === 'directory' && handleFolderClick(file.name)}
             >
               <div className="col-span-6 flex items-center">
                 {renamingId === file.id ? (
@@ -107,14 +139,24 @@ export default function FileManager() {
                   />
                 ) : (
                   <>
-                    {file.type === 'folder' ? <FolderIcon /> : <FileIcon />}
+                    {file.type === 'directory' ? <FolderIcon /> : <FileIcon />}
                     {file.name}
                   </>
                 )}
               </div>
-              <div className="col-span-2">{file.type}</div>
-              <div className="col-span-2">{file.size}</div>
-              <div className="col-span-2">{file.modified}</div>
+              <div className="col-span-1">
+                {file.type === 'directory' 
+                  ? '目录' 
+                  : (() => {
+                      const mimeType = mime.lookup(file.name);
+                      if (typeof mimeType === 'string') {
+                        return mimeType.split('/')[0];
+                      }
+                      return '未知';
+                    })()}
+              </div>
+              <div className="col-span-1">{file.size}</div>
+              <div className="col-span-1">{file.modified}</div>
             </div>
           ))}
         </div>
