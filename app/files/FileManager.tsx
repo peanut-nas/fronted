@@ -8,6 +8,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useCookies } from 'react-cookie';
+import Toast from "@/components/ui/toast";
 
 type FileItem = {
   id: string;
@@ -55,6 +58,10 @@ export default function FileManager() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [contextMenuTarget, setContextMenuTarget] = useState<{ type: 'file' | 'space', id?: string }>({ type: 'space' });
   const [path, setPath] = useState<string>('');
+  const [cookies] = useCookies(['token']);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     const fetchFiles = async () => {
@@ -111,8 +118,56 @@ export default function FileManager() {
     setPath(prevPath => prevPath ? `${prevPath}/${folderName}` : folderName);
   };
 
+  const handleBack = () => {
+    setPath(prevPath => {
+      const parts = prevPath.split('/');
+      parts.pop();
+      return parts.join('/');
+    });
+  };
+
+  const handleCopyLink = () => {
+    if (contextMenuTarget.type === 'file' && contextMenuTarget.id) {
+      const file = files.find(f => f.id === contextMenuTarget.id);
+      if (file) {
+        setToastMessage(null);
+        setIsExiting(false);
+        const link = `${window.location.origin}/api/files/${path}/${file.name}?token=${cookies.token}`;
+        navigator.clipboard.writeText(link).then(() => {
+          setToastType('success');
+          setToastMessage('链接已复制到剪贴板');
+        }).catch(err => {
+          setToastType('error');
+          setToastMessage(err);
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (toastMessage && !isExiting) {
+      const timer = setTimeout(() => {
+        setIsExiting(true);
+        setTimeout(() => setToastMessage(null), 300);
+      }, 2700);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage, isExiting]);
+
   return (
-    <ContextMenu>
+        <div>
+          {toastMessage && <Toast message={toastMessage} type={toastType} isExiting={isExiting} />}
+          <div className="flex items-center mb-4 mr-2 h-10">
+        {path && (
+          <Button onClick={handleBack} className="flex items-center justify-center mr-2 h-10">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+          </Button>
+        )}
+        <h1 className="text-2xl font-semibold text-gray-800 flex items-center">{path ? `根目录 / ${path.split('/').join(' / ')}` : '根目录'}</h1>
+      </div>
+      <ContextMenu>
       <ContextMenuTrigger asChild>
         <div className="relative min-h-[400px] rounded-lg border border-gray-200 p-4">
           <div className="grid grid-cols-9 gap-4 text-sm text-gray-500 font-medium border-b pb-2 mb-2">
@@ -180,7 +235,7 @@ export default function FileManager() {
             >
               删除
             </ContextMenuItem>
-            <ContextMenuItem className={menuItemClass}>
+            <ContextMenuItem className={menuItemClass} onSelect={handleCopyLink}>
               复制链接
             </ContextMenuItem>
           </>
@@ -194,5 +249,6 @@ export default function FileManager() {
         )}
       </ContextMenuContent>
     </ContextMenu>
+</div>
   );
 }
