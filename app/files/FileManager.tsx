@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import mime from 'mime-types';
 import {
   ContextMenu,
@@ -20,6 +20,11 @@ type FileItem = {
   mime_type: string;
   modified: string;
 };
+
+interface SortableItem {
+  type: 'file' | 'directory';
+  name: string;
+}
 
 const formatSize = (size: number) => {
   if (size >= 1e9) return `${(size / 1e9).toFixed(1)} GB`;
@@ -62,33 +67,50 @@ export default function FileManager() {
   const [cookies] = useCookies(['token']);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
-  const [isExiting, setIsExiting] = useState(false);
+
+  const handleCloseToast = () => {
+    setToastMessage(null);
+  };
+
+  // 添加一个引用来访问文件输入框
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch(`/api/files/${path}`);
+      const data = await response.json();
+      const formattedData = data.map((file: any) => ({
+        id: file.name,
+        name: file.name,
+        type: file.type,
+        size: file.size !== undefined ? formatSize(file.size) : '-',
+        mime_type: (() => {
+          const mimeType = mime.lookup(file.name);
+          if (typeof mimeType === 'string') {
+            return mimeType.split('/')[0];
+          }
+          return '未知';
+        })(),
+        modified: file.last_modified,
+      }));
+
+      // 添加排序逻辑
+      const sortedData = formattedData.sort((a: SortableItem, b: SortableItem): number => {
+        // 首先按类型排序（目录优先）
+        if (a.type !== b.type) {
+          return a.type === 'directory' ? -1 : 1;
+        }
+        // 然后按名字升序排序
+        return a.name.localeCompare(b.name, 'zh-CN');
+      });
+
+      setFiles(sortedData);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await fetch(`/api/files/${path}`);
-        const data = await response.json();
-        const formattedData = data.map((file: any) => ({
-          id: file.name,
-          name: file.name,
-          type: file.type,
-          size: file.size !== undefined ? formatSize(file.size) : '-',
-          mime_type: (() => {
-            const mimeType = mime.lookup(file.name);
-            if (typeof mimeType === 'string') {
-              return mimeType.split('/')[0];
-            }
-            return '未知';
-          })(),
-          modified: file.last_modified,
-        }));
-        setFiles(formattedData);
-      } catch (error) {
-        console.error('Error fetching files:', error);
-      }
-    };
-
     fetchFiles();
   }, [path]);
 
@@ -98,9 +120,30 @@ export default function FileManager() {
     }
   };
 
-  const handleDelete = () => {
-    if (contextMenuTarget.type === 'file') {
-      setFiles(files.filter(f => f.id !== contextMenuTarget.id));
+  const handleDelete = async () => {
+    if (contextMenuTarget.type === 'file' && contextMenuTarget.id) {
+      const file = files.find(f => f.id === contextMenuTarget.id);
+      if (file) {
+        try {
+          const response = await fetch(`/api/files/${path}/${file.name}`, {
+            method: 'DELETE',
+          });
+
+          if (response.ok) {
+            setToastType('success');
+            setToastMessage('文件删除成功');
+            // Refresh the file list
+            fetchFiles();
+          } else {
+            setToastType('error');
+            setToastMessage('文件删除失败');
+          }
+        } catch (error) {
+          console.error('Error deleting file:', error);
+          setToastType('error');
+          setToastMessage('文件删除失败');
+        }
+      }
     }
   };
 
@@ -140,7 +183,7 @@ export default function FileManager() {
       const file = files.find(f => f.id === contextMenuTarget.id);
       if (file) {
         setToastMessage(null);
-        setIsExiting(false);
+        handleCloseToast();
         const link = `${window.location.origin}/api/files/${path}/${file.name}?token=${cookies.token}`;
         navigator.clipboard.writeText(link).then(() => {
           setToastType('success');
@@ -167,19 +210,65 @@ export default function FileManager() {
     }
   };
 
-  useEffect(() => {
-    if (toastMessage && !isExiting) {
-      const timer = setTimeout(() => {
-        setIsExiting(true);
-        setTimeout(() => setToastMessage(null), 300);
-      }, 2700);
-      return () => clearTimeout(timer);
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('handleUpload triggered');
+    const files = event.target.files;
+    if (files) {
+      let allUploadsSuccessful = true;
+      for (let i = 0; i < files.length; i++) {
+        const formData = new FormData();
+        formData.append('file', files[i]);
+
+        try {
+          const response = await fetch(`/api/files/${path}/${files[i].name}`, {
+            method: 'POST',
+            body: formData,
+          });
+          if (response.status !== 200) {
+            allUploadsSuccessful = false;
+          }
+        } catch (error) {
+          allUploadsSuccessful = false;
+          console.error('Error uploading file:', error);
+        }
+      }
+
+      if (allUploadsSuccessful) {
+        setToastType('success');
+        setToastMessage('文件上传成功');
+      } else {
+        setToastType('error');
+        setToastMessage('部分文件上传失败');
+      }
+
+      // 直接调用 fetchFiles 函数来刷新列表
+      fetchFiles();
     }
-  }, [toastMessage, isExiting]);
+  };
 
   return (
     <div>
-      {toastMessage && <Toast message={toastMessage} type={toastType} isExiting={isExiting} />}
+      <input
+        type="file"
+        ref={fileInputRef}
+        multiple
+        className="hidden"
+        onChange={handleUpload}
+        onClick={(e) => {
+          console.log('File input clicked');
+          // 清除之前的值，确保onChange事件能够触发
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }}
+      />
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastType}
+          onClose={handleCloseToast}
+        />
+      )}
       <div className="flex items-center mb-4 mr-2 h-10">
         {path && (
           <Button onClick={handleBack} className="flex items-center justify-center mr-2 h-10">
@@ -271,12 +360,23 @@ export default function FileManager() {
 
             </>
           ) : (
-            <ContextMenuItem
-              className={menuItemClass}
-              onSelect={handleNewFile}
-            >
-              新建文件
-            </ContextMenuItem>
+            <>
+              <ContextMenuItem
+                className={menuItemClass}
+                onSelect={() => {
+                  console.log('Upload menu item clicked');
+                  fileInputRef.current?.click();
+                }}
+              >
+                上传文件
+              </ContextMenuItem>
+              <ContextMenuItem
+                className={menuItemClass}
+                onSelect={handleNewFile}
+              >
+                新建文件
+              </ContextMenuItem>
+            </>
           )}
         </ContextMenuContent>
       </ContextMenu>
