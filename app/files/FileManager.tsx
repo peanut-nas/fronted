@@ -167,16 +167,6 @@ export default function FileManager() {
     }
   };
 
-  const handlePlay = () => {
-    if (contextMenuTarget.type === 'file' && contextMenuTarget.id) {
-      const file = files.find(f => f.id === contextMenuTarget.id);
-      if (file && file.mime_type === 'video') {
-        const videoUrl = `${window.location.origin}/api/files/${path}/${file.name}?token=${cookies.token}`;
-        window.open(videoUrl, '_blank');
-      }
-    }
-  };
-
   useEffect(() => {
     if (toastMessage && !isExiting) {
       const timer = setTimeout(() => {
@@ -252,27 +242,18 @@ export default function FileManager() {
             <>
               {contextMenuTarget.id && files.find(f => f.id === contextMenuTarget.id)?.type === 'file' && (
                 <>
-                  {files.find(f => f.id === contextMenuTarget.id)?.mime_type === 'video' && (
-                    <ContextMenuItem
-                      className={menuItemClass}
-                      onSelect={handlePlay}
-                    >
-                      播放
-                    </ContextMenuItem>
-                  )}
-                  <ContextMenuItem
-                    className={menuItemClass}
-                    onSelect={handleCopyLink}
-                  >
-                    复制链接
-                  </ContextMenuItem>
                   <ContextMenuItem
                     className={menuItemClass}
                     onSelect={handleDownload}
                   >
                     下载
                   </ContextMenuItem>
-
+                  <ContextMenuItem
+                    className={menuItemClass}
+                    onSelect={handleCopyLink}
+                  >
+                    复制链接
+                  </ContextMenuItem>
                 </>
               )}
               <ContextMenuItem
