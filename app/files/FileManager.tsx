@@ -117,7 +117,7 @@ export default function FileManager() {
   };
 
   const saveRename = (newName: string) => {
-    setFiles(files.map(f => 
+    setFiles(files.map(f =>
       f.id === renamingId ? { ...f, name: newName } : f
     ));
     setRenamingId(null);
@@ -153,6 +153,30 @@ export default function FileManager() {
     }
   };
 
+  const handleDownload = () => {
+    if (contextMenuTarget.type === 'file' && contextMenuTarget.id) {
+      const file = files.find(f => f.id === contextMenuTarget.id);
+      if (file) {
+        const link = document.createElement('a');
+        link.href = `${window.location.origin}/api/files/${path}/${file.name}?token=${cookies.token}`;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+  };
+
+  const handlePlay = () => {
+    if (contextMenuTarget.type === 'file' && contextMenuTarget.id) {
+      const file = files.find(f => f.id === contextMenuTarget.id);
+      if (file && file.mime_type === 'video') {
+        const videoUrl = `${window.location.origin}/api/files/${path}/${file.name}?token=${cookies.token}`;
+        window.open(videoUrl, '_blank');
+      }
+    }
+  };
+
   useEffect(() => {
     if (toastMessage && !isExiting) {
       const timer = setTimeout(() => {
@@ -164,94 +188,117 @@ export default function FileManager() {
   }, [toastMessage, isExiting]);
 
   return (
-        <div>
-          {toastMessage && <Toast message={toastMessage} type={toastType} isExiting={isExiting} />}
-          <div className="flex items-center mb-4 mr-2 h-10">
+    <div>
+      {toastMessage && <Toast message={toastMessage} type={toastType} isExiting={isExiting} />}
+      <div className="flex items-center mb-4 mr-2 h-10">
         {path && (
           <Button onClick={handleBack} className="flex items-center justify-center mr-2 h-10">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </Button>
         )}
         <h1 className="text-2xl font-semibold text-gray-800 flex items-center">{path ? `根目录 / ${path.split('/').join(' / ')}` : '根目录'}</h1>
       </div>
       <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div className="relative min-h-[400px] rounded-lg border border-gray-200 p-4">
-          <div className="grid grid-cols-9 gap-4 text-sm text-gray-500 font-medium border-b pb-2 mb-2">
-            <div className="col-span-6">名称</div>
-            <div className="col-span-1">类型</div>
-            <div className="col-span-1">大小</div>
-            <div className="col-span-1">修改日期</div>
-          </div>
-
-          {files.map(file => (
-            <div 
-              key={file.id}
-              className="grid grid-cols-9 gap-4 items-center p-2 hover:bg-gray-50 rounded"
-              onContextMenuCapture={() => setContextMenuTarget({ type: 'file', id: file.id })}
-              onClick={() => file.type === 'directory' && handleFolderClick(file.name)}
-            >
-              <div className="col-span-6 flex items-center">
-                {renamingId === file.id ? (
-                  <Input
-                    autoFocus
-                    defaultValue={file.name}
-                    onBlur={(e) => saveRename(e.target.value)}
-                    className="h-8 px-2 py-1 text-sm"
-                  />
-                ) : (
-                  <>
-                    {file.type === 'directory' ? <FolderIcon /> : <FileIcon />}
-                    {file.name}
-                  </>
-                )}
-              </div>
-              <div className="col-span-1">
-                {file.type === 'directory' 
-                  ? '目录' 
-                  : file.mime_type}
-              </div>
-              <div className="col-span-1">{file.size}</div>
-              <div className="col-span-1">{file.modified}</div>
+        <ContextMenuTrigger asChild>
+          <div className="relative min-h-[400px] rounded-lg border border-gray-200 p-4">
+            <div className="grid grid-cols-9 gap-4 text-sm text-gray-500 font-medium border-b pb-2 mb-2">
+              <div className="col-span-6">名称</div>
+              <div className="col-span-1">类型</div>
+              <div className="col-span-1">大小</div>
+              <div className="col-span-1">修改日期</div>
             </div>
-          ))}
-        </div>
-      </ContextMenuTrigger>
 
-      <ContextMenuContent 
-        className="bg-white/70 backdrop-blur-md border border-gray-200 rounded-lg shadow-lg py-2 w-48 space-y-1"
-        onInteractOutside={() => setContextMenuTarget({ type: 'space' })}
-      >
-        {contextMenuTarget.type === 'file' ? (
-          <>
-            <ContextMenuItem 
+            {files.map(file => (
+              <div
+                key={file.id}
+                className="grid grid-cols-9 gap-4 items-center p-2 hover:bg-gray-50 rounded"
+                onContextMenuCapture={() => setContextMenuTarget({ type: 'file', id: file.id })}
+                onClick={() => file.type === 'directory' && handleFolderClick(file.name)}
+              >
+                <div className="col-span-6 flex items-center">
+                  {renamingId === file.id ? (
+                    <Input
+                      autoFocus
+                      defaultValue={file.name}
+                      onBlur={(e) => saveRename(e.target.value)}
+                      className="h-8 px-2 py-1 text-sm"
+                    />
+                  ) : (
+                    <>
+                      {file.type === 'directory' ? <FolderIcon /> : <FileIcon />}
+                      {file.name}
+                    </>
+                  )}
+                </div>
+                <div className="col-span-1">
+                  {file.type === 'directory'
+                    ? '目录'
+                    : file.mime_type}
+                </div>
+                <div className="col-span-1">{file.size}</div>
+                <div className="col-span-1">{file.modified}</div>
+              </div>
+            ))}
+          </div>
+        </ContextMenuTrigger>
+
+        <ContextMenuContent
+          className="bg-white/70 backdrop-blur-md border border-gray-200 rounded-lg shadow-lg py-2 w-48 space-y-1"
+          onInteractOutside={() => setContextMenuTarget({ type: 'space' })}
+        >
+          {contextMenuTarget.type === 'file' ? (
+            <>
+              {contextMenuTarget.id && files.find(f => f.id === contextMenuTarget.id)?.type === 'file' && (
+                <>
+                  {files.find(f => f.id === contextMenuTarget.id)?.mime_type === 'video' && (
+                    <ContextMenuItem
+                      className={menuItemClass}
+                      onSelect={handlePlay}
+                    >
+                      播放
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem
+                    className={menuItemClass}
+                    onSelect={handleCopyLink}
+                  >
+                    复制链接
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    className={menuItemClass}
+                    onSelect={handleDownload}
+                  >
+                    下载
+                  </ContextMenuItem>
+
+                </>
+              )}
+              <ContextMenuItem
+                className={menuItemClass}
+                onSelect={handleRename}
+              >
+                重命名
+              </ContextMenuItem>
+              <ContextMenuItem
+                className={menuItemClass}
+                onSelect={handleDelete}
+              >
+                删除
+              </ContextMenuItem>
+
+            </>
+          ) : (
+            <ContextMenuItem
               className={menuItemClass}
-              onSelect={handleRename}
+              onSelect={handleNewFile}
             >
-              重命名
+              新建文件
             </ContextMenuItem>
-            <ContextMenuItem 
-              className={menuItemClass}
-              onSelect={handleDelete}
-            >
-              删除
-            </ContextMenuItem>
-            <ContextMenuItem className={menuItemClass} onSelect={handleCopyLink}>
-              复制链接
-            </ContextMenuItem>
-          </>
-        ) : (
-          <ContextMenuItem 
-            className={menuItemClass}
-            onSelect={handleNewFile}
-          >
-            新建文件
-          </ContextMenuItem>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
-</div>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+    </div>
   );
 }
