@@ -17,6 +17,7 @@ type FileItem = {
   name: string;
   type: 'file' | 'directory';
   size: string;
+  mime_type: string;
   modified: string;
 };
 
@@ -73,6 +74,13 @@ export default function FileManager() {
           name: file.name,
           type: file.type,
           size: file.size !== undefined ? formatSize(file.size) : '-',
+          mime_type: (() => {
+            const mimeType = mime.lookup(file.name);
+            if (typeof mimeType === 'string') {
+              return mimeType.split('/')[0];
+            }
+            return '未知';
+          })(),
           modified: file.last_modified,
         }));
         setFiles(formattedData);
@@ -102,6 +110,7 @@ export default function FileManager() {
       name: '新建文件',
       type: 'file',
       size: '0 KB',
+      mime_type: '未知',
       modified: new Date().toISOString().split('T')[0]
     };
     setFiles(prev => [...prev, newFile]);
@@ -202,13 +211,7 @@ export default function FileManager() {
               <div className="col-span-1">
                 {file.type === 'directory' 
                   ? '目录' 
-                  : (() => {
-                      const mimeType = mime.lookup(file.name);
-                      if (typeof mimeType === 'string') {
-                        return mimeType.split('/')[0];
-                      }
-                      return '未知';
-                    })()}
+                  : file.mime_type}
               </div>
               <div className="col-span-1">{file.size}</div>
               <div className="col-span-1">{file.modified}</div>
