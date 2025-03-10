@@ -31,8 +31,7 @@ jobs:
             package.json \
             package-lock.json \
             next.config.js \
-            public \
-            .env.production
+            public
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
