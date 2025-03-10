@@ -35,3 +35,28 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Install from release
+
+```bash
+# 下载解压
+mkdir nas-fronted && tar -zxvf nas-fronted-xxx.tar.gz -C nas-fronted
+
+# 安装依赖
+npm install --production
+
+# 安装 PM2
+npm install -g pm2
+
+# 启动应用
+pm2 start npm --name "nas-fronted" -- start
+
+# 生成启动脚本
+pm2 startup
+
+# 保存当前运行的应用列表，以便开机恢复
+pm2 save
+
+# 查看应用状态
+pm2 status
+```
