@@ -49,7 +49,7 @@ npm install --production
 npm install -g pm2
 
 # 启动应用
-pm2 start npm --name "nas-fronted" -- start
+cd nas-fronted && pm2 start npm --name "nas-fronted" -- start
 
 # 生成启动脚本
 pm2 startup
