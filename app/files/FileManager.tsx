@@ -192,13 +192,38 @@ export default function FileManager() {
         setToastMessage(null);
         handleCloseToast();
         const link = `${window.location.origin}/api/files/${path}/${file.name}?token=${cookies.token}`;
-        navigator.clipboard.writeText(link).then(() => {
-          setToastType('success');
-          setToastMessage('链接已复制到剪贴板');
-        }).catch(err => {
-          setToastType('error');
-          setToastMessage(err);
-        });
+        // Try using clipboard API first, fallback to textarea method
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(link).then(() => {
+            setToastType('success');
+            setToastMessage('链接已复制到剪贴板');
+          }).catch(err => {
+            setToastType('error');
+            setToastMessage('复制失败');
+            console.error('Clipboard error:', err);
+          });
+        } else {
+          // Fallback to textarea method
+          const textarea = document.createElement('textarea');
+          textarea.value = link;
+          textarea.style.position = 'fixed';
+          textarea.style.left = '-999999px';
+          textarea.style.top = '-999999px';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          try {
+            document.execCommand('copy');
+            setToastType('success');
+            setToastMessage('链接已复制到剪贴板');
+          } catch (err) {
+            setToastType('error');
+            setToastMessage('复制失败');
+            console.error('Fallback copy error:', err);
+          } finally {
+            document.body.removeChild(textarea);
+          }
+        }
       }
     }
   };
