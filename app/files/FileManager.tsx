@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import mime from 'mime-types';
 import {
   ContextMenu,
@@ -20,6 +20,13 @@ type FileItem = {
   mime_type: string;
   modified: string;
 };
+
+interface FileData {
+  name: string;
+  type: 'file' | 'directory';
+  size?: number;
+  last_modified: string;
+}
 
 interface SortableItem {
   type: 'file' | 'directory';
@@ -75,11 +82,11 @@ export default function FileManager() {
   // 添加一个引用来访问文件输入框
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       const response = await fetch(`/api/files/${path}`);
       const data = await response.json();
-      const formattedData = data.map((file: any) => ({
+      const formattedData = data.map((file: FileData) => ({
         id: file.name,
         name: file.name,
         type: file.type,
@@ -108,11 +115,11 @@ export default function FileManager() {
     } catch (error) {
       console.error('Error fetching files:', error);
     }
-  };
+  }, [path]);
 
   useEffect(() => {
     fetchFiles();
-  }, [path]);
+  }, [path, fetchFiles]);
 
   const handleRename = () => {
     if (contextMenuTarget.type === 'file') {
@@ -254,7 +261,7 @@ export default function FileManager() {
         multiple
         className="hidden"
         onChange={handleUpload}
-        onClick={(e) => {
+        onClick={() => {
           console.log('File input clicked');
           // 清除之前的值，确保onChange事件能够触发
           if (fileInputRef.current) {
